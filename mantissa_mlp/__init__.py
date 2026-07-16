@@ -19,5 +19,15 @@ except ImportError:
 from .model import MLP
 from . import models, tasks
 
+def __getattr__(name):
+    # PEP 562 lazy import (mantissa-autoencoder's pattern): importing
+    # .datasets points MANTISSA_CNN_DATA at the sibling cnn data/ for
+    # mnist_flat — only do that side effect when datasets are actually used.
+    if name == "datasets":
+        import importlib
+        return importlib.import_module(".datasets", __name__)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 __version__ = "0.1.0"
-__all__ = ["MLP", "models", "tasks"]
+__all__ = ["MLP", "models", "tasks", "datasets"]
