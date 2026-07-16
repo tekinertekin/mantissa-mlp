@@ -223,13 +223,13 @@ physics appears as peaks on a falling background: the J/ψ at 3.10 GeV
 the Z at 91 GeV (1983, electroweak unification).
 
 The task this package builds from it: predict which resonance an event
-belongs to from the muon kinematics — 16 features (E, p⃗, p_T, η, φ,
+belongs to from the muon kinematics — 16 features (E, p_x, p_y, p_z, p_T, η, φ,
 charge, per muon), 3 classes. **The labels are constructed, and honestly
 so**: an event is labeled J/ψ, Υ or Z by which invariant-mass window
 (2.8–3.4, 9.0–11.0, 60–120 GeV) it falls in, off-peak events are dropped
 (26,911 of the 100,000 remain — measured: 8,628 J/ψ, 12,159 Υ, 6,124 Z),
 and the mass itself is excluded from the features. Since the mass is a
-closed-form function of the features (`M² = (E₁+E₂)² − |p⃗₁+p⃗₂|²`), the
+closed-form function of the features (`M² = (E₁+E₂)² − |p₁+p₂|²`), the
 task is learnable by construction — what it measures is whether a small
 MLP can *approximate that nonlinear function* well enough to separate
 three mass scales, which is the universal-approximation section above
