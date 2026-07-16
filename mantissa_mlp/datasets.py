@@ -24,7 +24,7 @@ weights=True)`` -> ``(X_train, y_train, w_train, X_test, y_test, w_test)``.
 | name         | train/test      | d   | classes | source |
 |--------------|-----------------|-----|---------|--------|
 | higgsml      | 250000 / 550000 | 30  | 2 | ATLAS Higgs ML challenge 2014, CERN Open Data record 328, DOI 10.7483/OPENDATA.ATLAS.ZBP2.M5T8 (CC0) |
-| dimuon       | 70/30 of ~72k   | 16  | 3 | CMS dimuon events (McCauley, 2017), CERN Open Data record 545 (CC0) |
+| dimuon       | 75/25 of 26911  | 16  | 3 | CMS dimuon events (McCauley, 2017), CERN Open Data record 545 (CC0) |
 | mnist_flat   | 60000 / 10000   | 784 | 10 | LeCun et al. (1998), via mantissa-cnn's loader, flattened |
 | covertype    | 75/25 of 581012 | 54  | 7 | UCI covtype (Blackard & Dean, 1999) |
 | wine_quality | 75/25 of 6497   | 11  | 3 | UCI wine quality, red+white (Cortez et al., 2009) |

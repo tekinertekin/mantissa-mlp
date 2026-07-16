@@ -226,7 +226,8 @@ The task this package builds from it: predict which resonance an event
 belongs to from the muon kinematics — 16 features (E, p⃗, p_T, η, φ,
 charge, per muon), 3 classes. **The labels are constructed, and honestly
 so**: an event is labeled J/ψ, Υ or Z by which invariant-mass window
-(2.8–3.4, 9.0–11.0, 60–120 GeV) it falls in, off-peak events are dropped,
+(2.8–3.4, 9.0–11.0, 60–120 GeV) it falls in, off-peak events are dropped
+(26,911 of the 100,000 remain — measured: 8,628 J/ψ, 12,159 Υ, 6,124 Z),
 and the mass itself is excluded from the features. Since the mass is a
 closed-form function of the features (`M² = (E₁+E₂)² − |p⃗₁+p⃗₂|²`), the
 task is learnable by construction — what it measures is whether a small
@@ -278,7 +279,7 @@ python -m mantissa_mlp.datasets list
 | name | train/test | d | classes | task | source |
 |------|------------|---|---------|------|--------|
 | higgsml | 250k / 550k | 30 | 2 | Higgs → ττ signal vs background (simulated ATLAS, physics weights for AMS) | CERN Open Data [328](http://opendata.cern.ch/record/328), CC0, DOI [10.7483/OPENDATA.ATLAS.ZBP2.M5T8](https://doi.org/10.7483/OPENDATA.ATLAS.ZBP2.M5T8) |
-| dimuon | 70/30 of ~72k | 16 | 3 | J/ψ vs Υ vs Z from muon kinematics (mass-window labels, real CMS events) | CERN Open Data [545](http://opendata.cern.ch/record/545), CC0 (McCauley, 2017) |
+| dimuon | 75/25 of ~27k | 16 | 3 | J/ψ vs Υ vs Z from muon kinematics (mass-window labels, real CMS events) | CERN Open Data [545](http://opendata.cern.ch/record/545), CC0 (McCauley, 2017) |
 | mnist_flat | 60k / 10k | 784 | 10 | digits, flattened to rows — the family's mnist via mantissa-cnn, one download shared | LeCun, Bottou, Bengio & Haffner (1998) |
 | covertype | 75/25 of 581k | 54 | 7 | forest cover type from cartographic features | UCI covtype (Blackard & Dean, 1999) |
 | wine_quality | 75/25 of 6.5k | 11 | 3 | red+white vinho verde; expert score binned ≤5 / 6 / ≥7 (documented, not canonical) | UCI (Cortez, Cerdeira, Almeida, Matos & Reis, 2009) |
