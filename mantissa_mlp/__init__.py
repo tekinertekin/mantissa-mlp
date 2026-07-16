@@ -16,5 +16,7 @@ except ImportError:
         "mantissa-cnn is not installed — run: pip install mantissa-cnn"
     ) from None
 
+from .model import MLP
+
 __version__ = "0.1.0"
-__all__ = []
+__all__ = ["MLP"]
