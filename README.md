@@ -319,9 +319,127 @@ higgsml** — the physics column, reported alongside accuracy because they
 deliberately disagree — and peak RSS in a fresh subprocess, import cost
 included.
 
-*The harness has not run yet; this section carries the frozen protocol so
-the tables that land here cannot move the goalposts. Measured so far
-(v0.1.0 smoke, not the protocol): see CHANGELOG.*
+### higgsml — the CERN centerpiece
+
+The ATLAS Higgs→ττ challenge data (record 328), 4000/2000 stratified
+subset, the `higgs_mlp` shape (30→300→200→100→2, ~90k parameters). The
+physics column is **AMS** — the challenge's own Approximate Median
+Significance — at a fixed **top-15%-by-P(signal)** selection (the operating
+region the challenge's entries cluster in), applied identically to every
+contender with the renormalized event weights. Accuracy and AMS disagree on
+purpose: unweighted the sample is ~34% signal, but the weights renormalize
+to the detector's rare-signal rates, so a high-accuracy classifier can still
+be a mediocre *selector* — which is exactly why the challenge scored AMS.
+
+| contender | params | fit (s) | test acc | AMS (top-15%) | peak RSS (MB) |
+|-----------|-------:|--------:|---------:|--------------:|--------------:|
+| **ours (mantissa)** | 89,802 | 0.219 | 0.773 | **2.61** | **31** |
+| vanilla numpy | 89,802 | **0.109** | 0.773 | 2.61 | 32 |
+| torch | 89,802 | 0.131 | 0.772 | 2.59 | 243 |
+| tensorflow | 89,802 | 0.320 | 0.772 | 2.13 | 490 |
+| scikit-learn | 89,701 | 0.181 | 0.747 | 1.74 | 97 |
+
+Every contender clears the select-everything baseline (AMS **1.08**);
+selecting nothing scores 0 by construction. ours and its numpy oracle are
+numerically identical (same math, two backends); torch is within noise; the
+gap to tensorflow and scikit-learn on AMS tracks their slightly lower
+accuracy and probability calibration feeding the same cut. This is a
+teaching-scale reproduction — a 4000-event subset, 5 epochs, no ensemble,
+momentum or dropout — not a leaderboard pipeline.
+
+### All six datasets
+
+Median fit time over 5 interleaved repeats (**s**, lower is better) and test
+accuracy. sklearn shares an *identical* parameter count on the four
+multiclass sets; on the two binary sets (higgsml, banknote) its single
+logistic output unit is `last_hidden+1` short of the 2-logit softmax head —
+a documented sigmoid-vs-softmax difference, asserted in `bench/contenders.py`.
+
+| dataset (train/test, classes) | metric | ours | vanilla numpy | torch | tensorflow | scikit-learn |
+|---|---|--:|--:|--:|--:|--:|
+| higgsml (4000/2000, 2) | fit s | 0.219 | **0.109** | 0.131 | 0.320 | 0.181 |
+|  | acc | **0.773** | **0.773** | 0.772 | 0.772 | 0.747 |
+| covertype (4000/2000, 7) | fit s | **0.039** | 0.053 | 0.088 | 0.223 | 0.073 |
+|  | acc | 0.620 | **0.621** | 0.610 | 0.600 | 0.618 |
+| dimuon (2000/1000, 3) | fit s | **0.017** | 0.025 | 0.044 | 0.159 | 0.036 |
+|  | acc | 0.810 | 0.810 | **0.849** | 0.819 | 0.758 |
+| mnist_flat (2000/1000, 10) | fit s | 0.053 | **0.034** | 0.056 | 0.188 | 0.050 |
+|  | acc | 0.814 | 0.814 | **0.826** | **0.826** | 0.822 |
+| wine_quality (2000/957, 3) | fit s | **0.017** | 0.025 | 0.043 | 0.157 | 0.034 |
+|  | acc | 0.558 | 0.558 | 0.549 | 0.553 | **0.559** |
+| banknote (916/300, 2) | fit s | **0.007** | 0.011 | 0.020 | 0.118 | 0.015 |
+|  | acc | 0.963 | 0.963 | **0.983** | 0.963 | 0.913 |
+
+Peak RSS is essentially flat per framework across datasets: **ours and the
+numpy backend ~30–40 MB**, scikit-learn ~93–104 MB, torch ~242–250 MB,
+tensorflow ~484–500 MB (import + one fit, fresh process). The raw per-pair
+numbers and every timing sample live in `bench/results/speed.json`.
+
+![Training time per dataset, log scale, five contenders](assets/fit_time.png)
+![Test accuracy per dataset and higgsml AMS](assets/accuracy.png)
+![Peak RSS per dataset, fresh process](assets/peak_rss.png)
+
+### What the numbers say (honestly)
+
+- **Memory is the clean win.** ours carries the C engine's whole training
+  footprint in ~30 MB — an order of magnitude under scikit-learn, ~8× under
+  torch, ~16× under tensorflow. That gap is the point of a small dependency.
+- **Small dense shapes go to ours.** On the four `tabular_mlp` sets
+  (64→32 hidden) ours has the fastest fit — the C engine's Dense/SGD kernels
+  beat everyone once the per-op dispatch is amortized over enough tiny
+  batches.
+- **Big shapes go to fused BLAS.** On the two largest layers — higgsml's
+  300-wide stack and mnist_flat's 784-wide input — ours loses to *its own*
+  numpy backend (0.219 vs 0.109 s; 0.053 vs 0.034 s). At those widths
+  numpy's fused Accelerate `gemm` is already near-optimal, and the mantissa
+  Session's per-primitive Python/ctypes dispatch is pure overhead on top of
+  a comparable kernel. An honest loss, and a clear place to optimize.
+- **torch tracks ours closely; tensorflow's eager `keras.fit` carries the
+  most per-step Python overhead** (and its `predict()` is 17–33 ms of graph
+  plumbing versus sub-millisecond for everyone else — a batch-inference tax,
+  not a training one).
+- **scikit-learn earns its place.** Its Cython SGD is genuinely quick —
+  competitive with ours on the small sets — which is why it is a full
+  contender here. It trails only on the binary sets (its single logistic
+  head and its own initializer, at a 5-epoch budget) and on AMS.
+- **Accuracy is a near-tie across the softmax family** (ours ≡ numpy
+  exactly); differences are a point or two of subset/init noise, not a
+  framework verdict.
+
+### Fairness caveats
+
+Identical architecture, epochs, batch size, learning rate and seed for every
+contender where the API allows; He-normal / Glorot-uniform init matched
+across ours, torch and tensorflow. **scikit-learn** draws its own init (no
+hook to match) and, on binary problems, uses one logistic output unit rather
+than a 2-logit softmax — both recorded, not papered over. keras is built and
+compiled *outside* the timed region, and every contender gets one untimed
+warm-up fit, so one-time graph tracing / kernel-dispatch caching is excluded
+the same way imports are. CPU only; thread knobs left at each framework's
+default and **recorded, not equalized** (mantissa 10, torch 4, tensorflow
+runtime-chosen). Two subset budgets were clamped because the frozen protocol
+asked for more than a minority class holds: **banknote** 1000/300 → 916/300
+and **wine_quality** 2000/1000 → 2000/957 (largest feasible equal-stratified
+size, seed unchanged; both requested and actual sizes are in the JSON). Peak
+RSS loads a cached standardized subset, not the 818k-row higgsml CSV, so the
+column is the framework's footprint rather than a 386 MB `np.loadtxt`
+transient shared by all.
+
+### Environment
+
+Apple M4 · Python 3.9.6 · numpy 2.0.2 · mantissa ≥0.2.1 · torch 2.8.0 ·
+tensorflow 2.20.0 / keras 3.10.0 · scikit-learn 1.6.1 · 2026-07-16. Total
+timed region: 47 s (medians over 5 interleaved repeats × 5 contenders × 6
+datasets, plus 30 fresh-process RSS measurements).
+
+### Reproduce
+
+```sh
+python -m mantissa_mlp.datasets download all   # fetch any missing datasets
+python -m bench.contenders                      # structural parity check
+python -m bench.speed                           # timed run (holds /tmp/mantissa-bench.lock)
+python -m bench.plots                           # regenerate assets/*.png
+```
 <!-- END:BENCH -->
 
 ### Methodology
