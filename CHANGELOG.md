@@ -6,6 +6,60 @@ deliberately not done.
 
 ---
 
+## v0.1.1 — 2026-07-16
+
+The benchmark harness the frozen protocol was waiting for.
+`bench/contenders.py` re-expresses the two zoo shapes layer-for-layer in
+torch, tensorflow/keras and scikit-learn's `MLPClassifier` (a full
+contender here — a real MLP, pinned to `solver="sgd"`, constant lr,
+momentum 0), with a structural parity check; `bench/speed.py` runs
+interleaved-repeat fit timing, test accuracy, higgsml AMS and
+fresh-subprocess peak RSS under a `/tmp/mantissa-bench.lock` machine lock;
+`bench/plots.py` draws the three figures. torch, tensorflow/keras,
+scikit-learn and matplotlib added to the dev environment; covertype and
+wine_quality downloaded — all six datasets now present.
+
+**Measured** (Apple M4, CPU, medians over 5 interleaved repeats × 5
+contenders × 6 datasets; 47 s timed region):
+- **higgsml, the CERN centerpiece** (~90k-param `higgs_mlp`, 4000/2000):
+  ours reaches **AMS 2.61** at the top-15%-by-P(signal) operating point
+  against the select-everything baseline's 1.08 (selecting nothing scores
+  0), test accuracy 0.773. The numpy backend is numerically identical
+  (2.61 / 0.773); torch 2.59 / 0.772; tensorflow 2.13 / 0.772;
+  scikit-learn 1.74 / 0.747. Accuracy and AMS disagree by design — the
+  renormalized weights make the signal rare, so AMS, not accuracy, is the
+  physics answer.
+- **Memory is the clean win**: ours and the numpy backend peak at ~30–40 MB
+  RSS across every dataset, vs scikit-learn ~93–104, torch ~242–250,
+  tensorflow ~484–500 (import + one fit, fresh process).
+- **Fit time splits by layer width**: ours is fastest on the four
+  `tabular_mlp` sets (64→32 hidden), but slower than its *own* numpy
+  backend on the two widest layers (higgsml 300-wide 0.219 vs 0.109 s;
+  mnist_flat 784-wide 0.053 vs 0.034 s) — where fused Accelerate BLAS
+  already saturates and the Session's per-primitive dispatch is pure
+  overhead. An honest loss, left visible as an optimization target.
+- Accuracy is a near-tie across the softmax family (ours ≡ numpy exactly);
+  torch edges dimuon/banknote/mnist_flat, scikit-learn trails on the two
+  binary sets. Structural parity holds exactly for the softmax family on
+  all six datasets and for scikit-learn on the four multiclass sets.
+
+**Deviations, recorded not tuned**: the frozen protocol's banknote
+(1000/300) and wine_quality (2000/1000) budgets exceed a minority class,
+so the harness clamped to the largest feasible equal-stratified sizes
+(**916/300** and **2000/957**, seed unchanged) — `protocol.py` stays
+frozen and both requested and actual sizes are in the results JSON.
+scikit-learn draws its own initializer (no hook to match ours/torch/tf's
+He/Glorot) and uses a single logistic output unit on binary problems
+(`last_hidden+1` fewer parameters than the 2-logit softmax head); peak RSS
+loads a cached standardized subset, not the 818k-row higgsml CSV, so it
+measures the framework's footprint and not a 386 MB `np.loadtxt` transient.
+
+**Deliberately not done**: no optimizer/momentum sweep, no per-framework
+tuning, no GPU; the wide-layer dispatch overhead is measured and named, not
+hidden.
+
+---
+
 ## v0.1.0 — 2026-07-16
 
 Initial release: multilayer perceptrons for tabular data (`MLP` with
