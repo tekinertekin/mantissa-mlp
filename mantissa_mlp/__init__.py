@@ -17,6 +17,7 @@ except ImportError:
     ) from None
 
 from .model import MLP
+from . import models
 
 __version__ = "0.1.0"
-__all__ = ["MLP"]
+__all__ = ["MLP", "models"]
