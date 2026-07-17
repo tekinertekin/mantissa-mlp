@@ -39,7 +39,7 @@ pip install mantissa-mlp   # after PyPI publication
 ```
 
 This pulls in `mantissa-cnn >= 0.1.0` (which pulls the engine
-`mantissa-nn >= 0.2.1`).
+`mantissa-core >= 0.2.1`).
 
 From checkouts (works today, no PyPI needed): clone this repo, `cnn`, and
 [mantissa](https://github.com/tekinertekin/mantissa) side by side, build the
