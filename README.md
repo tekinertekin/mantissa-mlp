@@ -35,7 +35,7 @@ training does no per-batch allocation.
 ## Install
 
 ```sh
-pip install mantissa-mlp   # after PyPI publication
+pip install mantissa-mlp
 ```
 
 This pulls in `mantissa-cnn >= 0.1.0` (which pulls the engine
@@ -106,7 +106,7 @@ layer of neurons *between* input and output: each hidden unit draws its own
 line, and the output unit combines their verdicts — two half-planes AND-ed
 and OR-ed into a band that XOR fits inside. Width buys expressiveness:
 
-<img src="assets/concepts/mlp.svg" width="320" alt="a multilayer perceptron: input layer, one hidden layer of five units, output layer">
+<img src="https://raw.githubusercontent.com/tekinertekin/mantissa-mlp/main/assets/concepts/mlp.svg" width="320" alt="a multilayer perceptron: input layer, one hidden layer of five units, output layer">
 
 **Backpropagation.** Hidden layers were proposed long before anyone could
 train them — the credit-assignment problem: how much of the output error is
@@ -154,7 +154,7 @@ to 99.999999% of light speed around a 27 km ring under the Franco-Swiss
 border and crosses them at four points, hundreds of millions of collisions
 per second:
 
-<img src="assets/cern/lhc_tunnel.jpg" width="420" alt="the LHC tunnel: the blue dipole magnet string curving into the distance">
+<img src="https://raw.githubusercontent.com/tekinertekin/mantissa-mlp/main/assets/cern/lhc_tunnel.jpg" width="420" alt="the LHC tunnel: the blue dipole magnet string curving into the distance">
 
 **The detectors.** At the crossing points sit cathedral-sized instruments —
 ATLAS (46 m long, 7000 t) and CMS are the two general-purpose ones — that
@@ -162,7 +162,7 @@ photograph each collision's debris: silicon trackers record charged-particle
 paths, calorimeters absorb and measure energy, muon chambers catch what
 punches through everything else:
 
-<img src="assets/cern/atlas_cavern.jpg" width="420" alt="the ATLAS detector in its cavern during construction, end-cap open">
+<img src="https://raw.githubusercontent.com/tekinertekin/mantissa-mlp/main/assets/cern/atlas_cavern.jpg" width="420" alt="the ATLAS detector in its cavern during construction, end-cap open">
 
 ### higgsml — the ATLAS Higgs challenge (record 328)
 
@@ -177,7 +177,7 @@ that exact analysis into the **Higgs Boson Machine Learning Challenge**
 [10.7483/OPENDATA.ATLAS.ZBP2.M5T8](https://doi.org/10.7483/OPENDATA.ATLAS.ZBP2.M5T8)) —
 official ATLAS simulation, the detector response and all:
 
-<img src="assets/cern/cms_higgs_event.jpg" width="360" alt="simulated Higgs decay event display in the CMS detector">
+<img src="https://raw.githubusercontent.com/tekinertekin/mantissa-mlp/main/assets/cern/cms_higgs_event.jpg" width="360" alt="simulated Higgs decay event display in the CMS detector">
 
 - **The 30 features** come in two families, named honestly in the file:
   `PRI_*` (primitives — quantities the detector measures more or less
@@ -375,9 +375,9 @@ numpy backend ~30–40 MB**, scikit-learn ~93–104 MB, torch ~242–250 MB,
 tensorflow ~484–500 MB (import + one fit, fresh process). The raw per-pair
 numbers and every timing sample live in `bench/results/speed.json`.
 
-![Training time per dataset, log scale, five contenders](assets/fit_time.png)
-![Test accuracy per dataset and higgsml AMS](assets/accuracy.png)
-![Peak RSS per dataset, fresh process](assets/peak_rss.png)
+![Training time per dataset, log scale, five contenders](https://raw.githubusercontent.com/tekinertekin/mantissa-mlp/main/assets/fit_time.png)
+![Test accuracy per dataset and higgsml AMS](https://raw.githubusercontent.com/tekinertekin/mantissa-mlp/main/assets/accuracy.png)
+![Peak RSS per dataset, fresh process](https://raw.githubusercontent.com/tekinertekin/mantissa-mlp/main/assets/peak_rss.png)
 
 ### What the numbers say (honestly)
 
