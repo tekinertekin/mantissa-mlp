@@ -10,10 +10,11 @@ command. The only code that touches the network is the explicit CLI::
 Data directory: ``./data/<name>/`` relative to the current working directory
 (so ``mlp/data/`` when run from the repo root), or the ``MANTISSA_MLP_DATA``
 environment variable. The directory is gitignored — datasets are never
-committed. Two family exceptions, both documented below: ``mnist_flat``
-reads mantissa-cnn's mnist files (one download for the whole family), and
-``banknote`` also looks in a sibling mantissa-perceptron checkout's
-``data/`` before asking you to download.
+committed. One family exception, documented below: ``banknote`` also looks
+in a sibling mantissa-perceptron checkout's ``data/`` before asking you to
+download. ``mnist_flat`` is a self-contained MNIST copy — this package
+downloads and reads its own IDX files (under ``data/mnist_flat/``), keeping
+the family's datasets independent per package.
 
 ``load(name)`` -> ``(X_train, y_train, X_test, y_test)``: X float32 (n, d)
 **unstandardized** (that is a train-statistics decision — see
@@ -25,7 +26,7 @@ weights=True)`` -> ``(X_train, y_train, w_train, X_test, y_test, w_test)``.
 |--------------|-----------------|-----|---------|--------|
 | higgsml      | 250000 / 550000 | 30  | 2 | ATLAS Higgs ML challenge 2014, CERN Open Data record 328, DOI 10.7483/OPENDATA.ATLAS.ZBP2.M5T8 (CC0) |
 | dimuon       | 75/25 of 26911  | 16  | 3 | CMS dimuon events (McCauley, 2017), CERN Open Data record 545 (CC0) |
-| mnist_flat   | 60000 / 10000   | 784 | 10 | LeCun et al. (1998), via mantissa-cnn's loader, flattened |
+| mnist_flat   | 60000 / 10000   | 784 | 10 | LeCun et al. (1998), this package's own IDX copy, flattened |
 | covertype    | 75/25 of 581012 | 54  | 7 | UCI covtype (Blackard & Dean, 1999) |
 | wine_quality | 75/25 of 6497   | 11  | 3 | UCI wine quality, red+white (Cortez et al., 2009) |
 | banknote     | 75/25 of 1372   | 4   | 2 | UCI 00267 — the mantissa-perceptron protocol dataset |
@@ -54,23 +55,16 @@ __all__ = ["DATASETS", "DIMUON_WINDOWS", "data_dir", "download",
 
 _DATA_ENV = "MANTISSA_MLP_DATA"
 
-# mnist_flat reads mantissa-cnn's data directory; importing this module
-# points MANTISSA_CNN_DATA at the data/ next to the installed mantissa_cnn
-# package (the cnn checkout's data/ in the dev layout, where mnist already
-# lives) unless the caller has set it — mantissa-autoencoder's pattern.
-_CNN_DATA_ENV = "MANTISSA_CNN_DATA"
-
-
-def _point_cnn_at_sibling_data() -> None:
-    if _CNN_DATA_ENV in os.environ:
-        return                     # the caller's choice stands
-    import mantissa_cnn.datasets as _cnn_ds
-    candidate = Path(_cnn_ds.__file__).resolve().parents[1] / "data"
-    if candidate.is_dir():
-        os.environ[_CNN_DATA_ENV] = str(candidate)
-
-
-_point_cnn_at_sibling_data()
+# mnist_flat is a self-contained MNIST copy: this package downloads and reads
+# its own IDX files (under data/mnist_flat/), independent of the rest of the
+# family — datasets are kept separate per package.
+_MNIST_FILES = ("train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz",
+                "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz")
+_MNIST_URLS = tuple("https://ossci-datasets.s3.amazonaws.com/mnist/" + f
+                    for f in _MNIST_FILES)
+_IDX_DTYPES = {0x08: np.dtype(">u1"), 0x0B: np.dtype(">i2"),
+               0x0C: np.dtype(">i4"), 0x0D: np.dtype(">f4"),
+               0x0E: np.dtype(">f8")}
 
 
 class _Spec(NamedTuple):
@@ -95,9 +89,9 @@ DATASETS = {
         "CMS dimuon resonances J/psi vs Upsilon vs Z, labels from invariant-"
         "mass windows (CERN Open Data 545, CC0)"),
     "mnist_flat": _Spec(
-        (), (), (),
-        "MNIST digits flattened to (n, 784) — mantissa-cnn's files, "
-        "downloaded once for the whole family"),
+        _MNIST_FILES, _MNIST_URLS, (b"\x1f\x8b",) * 4,
+        "MNIST digits flattened to (n, 784) — this package's own IDX copy "
+        "(LeCun et al., 1998)"),
     "covertype": _Spec(
         ("covtype.data.gz",),
         ("https://archive.ics.uci.edu/ml/machine-learning-databases/"
@@ -267,17 +261,46 @@ def _load_dimuon(path: Path):
     return _stratified_split(X, y[keep])
 
 
+def _read_idx(path: Path) -> np.ndarray:
+    """Parse one (gzipped) IDX file, verifying magic number and sizes."""
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rb") as f:
+        buf = f.read()
+    magic = int.from_bytes(buf[:4], "big")
+    code, ndim = (magic >> 8) & 0xFF, magic & 0xFF
+    if magic >> 16 != 0 or code not in _IDX_DTYPES or not 1 <= ndim <= 4:
+        raise ValueError(f"{path}: bad IDX magic 0x{magic:08x}")
+    dims = np.frombuffer(buf, ">u4", count=ndim, offset=4).astype(np.int64)
+    dt = _IDX_DTYPES[code]
+    expected = 4 + 4 * ndim + int(dims.prod()) * dt.itemsize
+    if len(buf) != expected:
+        raise ValueError(f"{path}: size {len(buf)} != expected {expected} "
+                         f"for dims {dims.tolist()}")
+    return np.frombuffer(buf, dt, offset=4 + 4 * ndim).reshape(dims)
+
+
 def _load_mnist_flat():
-    """mantissa-cnn's mnist, flattened NCHW (n,1,28,28) -> (n, 784)."""
-    from mantissa_cnn import datasets as cnn_datasets
-    try:
-        Xtr, ytr, Xte, yte = cnn_datasets.load("mnist")
-    except FileNotFoundError:
+    """MNIST flattened to (n, 784), scaled to [0, 1] — this package's own IDX
+    copy under data/mnist_flat/, independent of the rest of the family."""
+    d = data_dir() / "mnist_flat"
+    paths = [d / f for f in _MNIST_FILES]
+    if not all(p.is_file() for p in paths):
         raise FileNotFoundError(
             f"dataset 'mnist_flat' not downloaded — run: "
-            f"{download_command('mnist_flat')}") from None
-    return (Xtr.reshape(len(Xtr), -1), ytr.astype(np.int32),
-            Xte.reshape(len(Xte), -1), yte.astype(np.int32))
+            f"{download_command('mnist_flat')}")
+
+    def pair(images_path, labels_path):
+        X = _read_idx(images_path)
+        y = _read_idx(labels_path)
+        if X.ndim != 3 or X.shape[1:] != (28, 28):
+            raise ValueError(f"{images_path}: expected (n, 28, 28) images, "
+                             f"got {X.shape}")
+        Xf = np.ascontiguousarray(X.reshape(len(X), -1).astype(np.float32) / 255.0)
+        return Xf, y.astype(np.int32)
+
+    Xtr, ytr = pair(paths[0], paths[1])
+    Xte, yte = pair(paths[2], paths[3])
+    return Xtr, ytr, Xte, yte
 
 
 def _load_covertype(path: Path):
@@ -366,7 +389,7 @@ def subset(name: str, n_train: int, n_test: int, seed: int = 0,
     """Seeded stratified subset -> same tuple shape as load(name, weights).
 
     Per-class quotas are as equal as the class counts allow (largest-
-    remainder split of n over the classes present — mantissa-cnn's rule).
+    remainder split of n over the classes present — the family's rule).
     The benchmark protocol uses 4000/2000 for higgsml and covertype,
     2000/1000 for the rest. higgsml subset weights are renormalized again
     so each side's per-class sums stay equal to the full-set totals —
@@ -415,13 +438,9 @@ def download(name: str) -> None:
     magic or the CSV header) — a truncated body or an HTML error page
     raises OSError instead of landing on disk. The verified body is written
     to a ``.part`` file and renamed into place, so ``load()`` never sees a
-    partial download. ``mnist_flat`` delegates to mantissa-cnn's downloader
-    (same files, one copy for the whole family).
+    partial download. ``mnist_flat`` downloads its own MNIST IDX files through
+    the same generic path (its registry spec carries the files and URLs).
     """
-    if name == "mnist_flat":
-        from mantissa_cnn import datasets as cnn_datasets
-        cnn_datasets.download("mnist")
-        return
     spec = DATASETS[name]
     d = data_dir() / name
     d.mkdir(parents=True, exist_ok=True)
@@ -452,20 +471,11 @@ def download(name: str) -> None:
 def _main(argv) -> int:
     if len(argv) == 1 and argv[0] == "list":
         for name, spec in DATASETS.items():
-            if name == "mnist_flat":
-                try:
-                    from mantissa_cnn import datasets as cnn_datasets
-                    d = cnn_datasets.data_dir() / "mnist"
-                    ok = all((d / f).is_file()
-                             for f in cnn_datasets.DATASETS["mnist"].files)
-                except Exception:
-                    ok = False
-            else:
-                try:
-                    _require_files(name)
-                    ok = True
-                except FileNotFoundError:
-                    ok = False
+            try:
+                _require_files(name)
+                ok = True
+            except FileNotFoundError:
+                ok = False
             print(f"{name:13} {'present' if ok else 'missing':8} {spec.note}")
         return 0
     if len(argv) == 2 and argv[0] == "download":

@@ -4,7 +4,7 @@ the family's guard)."""
 import numpy as np
 import pytest
 
-import mantissa_cnn._engine as eng
+import mantissa_nn._engine as eng
 
 from mantissa_mlp import MLP, models
 
@@ -14,7 +14,7 @@ XOR_Y = np.array([0, 1, 1, 0], dtype=np.int32)
 
 def _engine_ready() -> bool:
     try:
-        eng.cnn_engine()
+        eng.engine()
         return True
     except Exception:
         return False

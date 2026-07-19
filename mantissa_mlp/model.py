@@ -18,10 +18,10 @@ Training loop design (mantissa_cnn.Sequential's):
 - Memory: mini-batch input/label staging buffers are allocated once per fit
   (one set for full batches, one for the epoch tail) and refilled with
   ``np.take(..., out=...)``; Dense scratch is allocated once per batch shape
-  (see mantissa_cnn.layers). Steady-state training does no per-batch
+  (see mantissa_nn.layers). Steady-state training does no per-batch
   allocation.
 
-Backends: exactly mantissa_cnn's — ``backend="mantissa"`` (default) runs
+Backends: the family's shared ones — ``backend="mantissa"`` (default) runs
 every Dense/loss/SGD primitive in the C engine (via a per-model Session when
 the engine offers one) and raises with the exact fix command when the engine
 is missing; ``backend="numpy"`` is the pure-numpy reference oracle.
@@ -34,9 +34,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from mantissa_cnn import _numpy_backend
-from mantissa_cnn._engine import cnn_engine
-from mantissa_cnn.layers import Dense
+from mantissa_nn import _numpy_backend
+from mantissa_nn._engine import engine
+from mantissa_nn.layers import Dense
 
 __all__ = ["MLP"]
 
@@ -54,7 +54,7 @@ class MLP:
         already has one of those.
     act : {"relu", "tanh"}
         Hidden activation. relu gets He-normal init, tanh Glorot-uniform
-        (mantissa_cnn.layers handles both). The head is always identity
+        (mantissa_nn.layers handles both). The head is always identity
         logits; softmax lives in the loss. Biases everywhere.
     classes : int or None
         Number of classes. None (default) infers ``max(y) + 1`` (at least 2)
@@ -77,7 +77,7 @@ class MLP:
     def __init__(self, hidden=(64, 32), act: str = "relu", classes=None,
                  seed: int = 0, backend: str = "mantissa"):
         if backend == "mantissa":
-            tk = cnn_engine()                 # raises with the exact fix
+            tk = engine()                     # raises with the exact fix
             # mantissa >= 0.2.2: a per-model Session memoizes each buffer's
             # ctypes pointer by identity — our buffers are allocated once
             # and refilled in place, so pointer derivation becomes a dict

@@ -11,7 +11,7 @@ gradient that reaches W1 has flowed through the loss and two activations.
 import numpy as np
 import pytest
 
-from mantissa_cnn import _numpy_backend as B
+from mantissa_nn import _numpy_backend as B
 
 EPS = 1e-6
 RTOL = 1e-5

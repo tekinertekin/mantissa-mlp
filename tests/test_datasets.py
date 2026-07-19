@@ -205,8 +205,9 @@ def test_banknote_from_sibling_perceptron_checkout(data_home):
     assert set(np.unique(np.concatenate([ytr, yte]))) == {0, 1}
 
 
-def test_mnist_flat_missing_uses_our_fix_command(data_home, monkeypatch):
-    monkeypatch.setenv("MANTISSA_CNN_DATA", str(data_home / "nowhere"))
+def test_mnist_flat_missing_uses_our_fix_command(data_home):
+    # data_home points MANTISSA_MLP_DATA at an empty tmp dir, so this package's
+    # own mnist_flat copy is absent and load() raises with its fix command.
     with pytest.raises(FileNotFoundError, match=r"dataset 'mnist_flat' not "
                        r"downloaded — run: python -m mantissa_mlp.datasets "
                        r"download mnist_flat"):

@@ -354,7 +354,7 @@ def _env_block() -> dict:
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
     }
     try:
-        from mantissa_cnn import MANTISSA_MIN_VERSION
+        from mantissa_nn import MANTISSA_MIN_VERSION
         env["mantissa"] = f">={MANTISSA_MIN_VERSION} (f32 dense primitives)"
     except Exception:
         env["mantissa"] = "unknown"

@@ -4,19 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mantissa-mlp"
-version = "0.1.1"
-description = "Multilayer perceptrons for tabular data on the mantissa C engine, built on mantissa-cnn"
+version = "0.1.2"
+description = "Multilayer perceptrons for tabular data on the mantissa C engine, built on mantissa-nn"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Tekin Ertekin" }]
 dependencies = [
     "numpy>=1.20",
-    # Dense layers and both backends come from mantissa-cnn (which pulls the
-    # engine mantissa-core >= 0.2.1 once both are on PyPI). For the dev layout,
-    # `pip install -e ../cnn` first — the editable install satisfies this
-    # requirement and finds a sibling mantissa/ checkout automatically.
-    "mantissa-cnn>=0.1.0",
+    # Dense layers and both backends come from mantissa-nn (which pulls the
+    # engine mantissa-core >= 0.2.1). For the dev layout, `pip install -e
+    # ../mantissa-nn` first — the editable install satisfies this requirement
+    # and finds a sibling mantissa/ checkout automatically.
+    "mantissa-nn>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +25,7 @@ dev = ["pytest>=7"]
 
 [project.urls]
 Homepage = "https://github.com/tekinertekin/mantissa-mlp"
-Base = "https://github.com/tekinertekin/mantissa-cnn"
+Base = "https://github.com/tekinertekin/mantissa-nn"
 Engine = "https://github.com/tekinertekin/mantissa"
 
 [tool.setuptools]
